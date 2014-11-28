@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Scratch Controller</title>
+    <meta charset="utf-8" />
+    <style type="text/css">
+      body {
+        text-align: center;
+        min-width: 500px;
+      }
+	body #canvas {
+		background-color: #ff0000;
+	}
+    </style>
+
+    <script src="js/jquery.min.js"></script> 
+
+    <script>
+      $(function(){
+        var ws;
+
+	var upButton = 0;
+	var downButton = 0;
+	var leftButton = 0;
+	var rightButton = 0;
+
+        ws = new WebSocket("ws://" + window.location.hostname + ":8888/ws");
+
+	window.addEventListener ("deviceorientation", devOrientationHandler, true);
+
+	var canvasUp = document.getElementById('touchPadUp');
+	canvasUp.addEventListener ("touchstart", doTouchStartUp, false);
+	canvasUp.addEventListener ("touchend", doTouchEndUp, false);
+	var ctxUp = canvasUp.getContext("2d");
+	ctxUp.fillStyle="#FF0000";
+	ctxUp.fillRect(0, 0, 100, 100);
+
+	var canvasDown = document.getElementById('touchPadDown');
+	canvasDown.addEventListener ("touchstart", doTouchStartDown, false);
+	canvasDown.addEventListener ("touchend", doTouchEndDown, false);
+	var ctxDown = canvasDown.getContext("2d");
+	ctxDown.fillStyle="#FF0000";
+	ctxDown.fillRect(0, 0, 100, 100);
+	
+	var canvasLeft = document.getElementById('touchPadLeft');
+	canvasLeft.addEventListener ("touchstart", doTouchStartLeft, false);
+	canvasLeft.addEventListener ("touchend", doTouchEndLeft, false);
+	var ctxLeft = canvasLeft.getContext("2d");
+	ctxLeft.fillStyle="#FF0000";
+	ctxLeft.fillRect(0, 0, 100, 100);
+
+	var canvasRight = document.getElementById('touchPadRight');
+	canvasRight.addEventListener ("touchstart", doTouchStartRight, false);
+	canvasRight.addEventListener ("touchend", doTouchEndRight, false);
+	var ctxRight = canvasRight.getContext("2d");
+	ctxRight.fillStyle="#FF0000";
+	ctxRight.fillRect(0, 0, 100, 100);
+
+
+	var send = function(msg) { ws.send(msg); }
+	function doTouchStartUp (event) { upButton = 1; doTouchStart (event, ctxUp); }
+	function doTouchEndUp (event) { upButton = 0; doTouchEnd (event, ctxUp); }
+
+	function doTouchStartDown (event) { downButton = 1; doTouchStart (event, ctxDown); }
+	function doTouchEndDown (event) { downButton = 0; doTouchEnd (event, ctxDown); }
+
+	function doTouchStartLeft (event) { leftButton = 1; doTouchStart (event, ctxLeft); }
+	function doTouchEndLeft (event) { leftButton = 0; doTouchEnd (event, ctxLeft); }
+
+	function doTouchStartRight (event) { rightButton = 1; doTouchStart (event, ctxRight); }
+	function doTouchEndRight (event) { rightButton = 0; doTouchEnd (event, ctxRight); }
+
+	window.setInterval (function(){doTimer()}, 30);
+
+	function doTouchStart (event, ctx) {
+		event.preventDefault ();
+		ctx.fillStyle="#0000FF";
+		ctx.fillRect(0, 0, 100, 100);
+	}
+
+	function doTouchEnd (event, ctx) {
+		event.preventDefault ();
+		ctx.fillStyle="#FF0000";
+		ctx.fillRect(0, 0, 100, 100);
+	}
+
+	function devOrientationHandler (event) {
+		var orientation = {};
+		orientation["alpha"] = event.alpha;
+		orientation["beta"] = event.beta;
+		orientation["gamma"] = event.gamma;
+		ws.send (JSON.stringify (orientation));
+	} 
+
+
+	function doTimer () {
+		var buttons = [];
+		if (upButton == 1) { buttons.push ("up"); }
+		if (downButton == 1) { buttons.push ("down"); }
+		if (leftButton == 1) { buttons.push ("left"); }
+		if (rightButton == 1) { buttons.push ("right"); }
+		if (buttons.length > 0) {
+			var buttonString = JSON.stringify (buttons);
+			ws.send (buttonString);
+		}
+	}
+
+      });
+    </script>
+  </head>
+ 
+	<body>
+		<table border=1>
+			<tr>
+				<td></td>
+				<td><canvas width="100" height="100" id="touchPadUp">Canvas not available.</canvas></td>
+				<td></td>
+			</tr>
+			<tr>
+				<td><canvas width="100" height="100" id="touchPadLeft">Canvas not available.</canvas></td>
+				<td></td>
+				<td><canvas width="100" height="100" id="touchPadRight">Canvas not available.</canvas></td>
+			</tr>
+			<tr>
+				<td></td>
+				<td><canvas width="100" height="100" id="touchPadDown">Canvas not available.</canvas></td>
+				<td></td>
+			</tr>
+		</table>
+	</body>
+</html>

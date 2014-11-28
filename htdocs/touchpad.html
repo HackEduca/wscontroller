@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang=en>
+<head>
+<meta charset=utf-8>
+<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0," /> 
+<title></title>
+<style type="text/css"> 
+	
+	* {
+	  -webkit-touch-callout: none; /* prevent callout to copy image, etc when tap to hold */
+	  -webkit-text-size-adjust: none; /* prevent webkit from resizing text to fit */
+	/* make transparent link selection, adjust last value opacity 0 to 1.0 */
+	  -webkit-tap-highlight-color: rgba(0,0,0,0); 
+	  -webkit-user-select: none; /* prevent copy paste, to allow, change 'none' to 'text' */
+	  -webkit-tap-highlight-color: rgba(0,0,0,0); 
+	}
+	
+	body {
+		background-color: #000000;
+		margin: 0px;
+	}
+	canvas {
+		display:block; 
+		position:absolute; 
+	}
+	.container {
+		width:auto;
+		text-align:center;
+		background-color:#ff0000;
+	}
+</style>
+
+
+</head>
+<body onload = "init()">
+<script src="js/Vector2.js"></script>
+<script>
+
+var fired = false;
+
+var canvas,
+ 	c, // c is the canvas' context 2D
+	container, 
+	halfWidth, 
+	halfHeight;
+
+setupCanvas();
+
+var buttonSpacing = canvas.width/12;
+var buttonSize = canvas.width/10;
+var fontSize = buttonSize / 3.5;
+
+/**
+* This defines the buttons that are on screen along with the broadcast message that should be sent when the button is pressed.
+* The format is as follow
+* x position, y position, width, height, broadcast message
+*
+* For example as entry as follows
+*
+* 100, 100, 40, 40, "Test"
+*
+* Defines a button with the upper left corner at 100, 100. The width of the button is 40 pixels, with a height of 40 pixels.
+* If the button is pushed it sends Test as a broadcast message, when the button is released it sends released-Test.
+*
+* These buttons can be redefined and the UI will change.
+*
+*/
+var buttons = [
+[(canvas.width/4) - (buttonSpacing / 2), (canvas.height/2) - (buttonSpacing * 2), buttonSize, buttonSize, "up", false, -1],
+[(canvas.width/4) - (buttonSpacing / 2), (canvas.height/2) + (buttonSpacing), buttonSize, buttonSize, "down", false, -1],
+[(canvas.width/4) - (buttonSpacing * 2), (canvas.height/2) - (buttonSpacing/2), buttonSize, buttonSize, "left", false, -1],
+[(canvas.width/4) + (buttonSpacing), (canvas.height/2) - (buttonSpacing/2), buttonSize, buttonSize, "right", false, -1],
+[((canvas.width/4) * 3) - (buttonSpacing / 2), (canvas.height/2) - (buttonSpacing * 2), buttonSize, buttonSize, "Y", false, -1],
+[((canvas.width/4) * 3) - (buttonSpacing / 2), (canvas.height/2) + (buttonSpacing), buttonSize, buttonSize, "A", false, -1],
+[((canvas.width/4) * 3) - (buttonSpacing * 2), (canvas.height/2) - (buttonSpacing/2), buttonSize, buttonSize, "X", false, -1],
+[((canvas.width/4) * 3) + (buttonSpacing), (canvas.height/2) - (buttonSpacing/2), buttonSize, buttonSize, "B", false, -1]
+];
+
+
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
+var playerName = getParameterByName ("playerName");
+
+function textToSend (buttonName) {
+	var toReturn = buttonName;
+	if (playerName != "") {
+		toReturn = playerName + "-" + buttonName;
+	}
+	return toReturn;
+}
+
+console.log ("testing " + playerName);
+
+
+
+var	touchable = 'createTouch' in document,
+	touches = [], // array of touch vectors
+	sensors = {};
+
+/* The WebSocket to the Scrtach proxy */
+var ws = new WebSocket("ws://" + window.location.hostname + ":8888/ws");
+
+/* Update the screen and scratch 25 times per second.
+* Touch events are sent as they happen.
+*/
+setInterval(draw, 1000/12); 
+
+if(touchable) {
+	canvas.addEventListener( 'touchstart', onTouchStart, false );
+	canvas.addEventListener( 'touchmove', onTouchMove, false );
+	canvas.addEventListener( 'touchend', onTouchEnd, false );
+	window.addEventListener ("deviceorientation", devOrientationHandler, true);
+	window.onorientationchange = resetCanvas;  
+	window.onresize = resetCanvas;  
+} 
+
+function devOrientationHandler (event) {
+//	sensors[textToSend("compass")] = event.alpha;
+//	sensors[textToSend("tilt")] = event.beta;
+//	sensors[textToSend("turn")] = event.gamma;
+}
+
+function resetCanvas (e) {  
+ 	// resize the canvas - but remember - this clears the canvas too. 
+  	canvas.width = window.innerWidth; 
+	canvas.height = window.innerHeight;
+	
+	halfWidth = canvas.width/2; 
+	halfHeight = canvas.height/2;
+	
+	//make sure we scroll to the top left. 
+	window.scrollTo(0,0); 
+}
+
+function init(){}
+
+function draw() {
+	c.clearRect(0,0,canvas.width, canvas.height); 
+
+	c.beginPath ();
+	c.strokeStyle = "cyan";
+	c.lineWidth = 1;
+	c.moveTo (canvas.width / 2, 0);
+	c.lineTo (canvas.width / 2, canvas.height);
+	c.closePath ();
+	c.stroke ();
+
+	if (Object.keys(sensors).length > 0) {
+		ws.send (JSON.stringify (sensors));
+	}
+
+	for (var i = 0; i < buttons.length; i++) {
+		c.beginPath ();
+		c.rect (buttons[i][0],buttons[i][1],buttons[i][2],buttons[i][3]);
+
+		c.font = fontSize + "pt Calibri";
+		c.textAlign = "center";
+
+		c.fillText (buttons[i][4], buttons[i][0] + (buttons[i][2] / 2), (buttons[i][1] + (buttons[i][3]/2)));
+		c.fillStyle = "cyan";
+		c.lineWidth = 3;
+		c.strokeStyle = "cyan";
+		c.stroke ();
+	}
+
+	if(touchable) {
+		for(var i=0; i<touches.length; i++) {	
+			var touch = touches[i]; 
+			
+			c.beginPath(); 
+			c.strokeStyle = "cyan";
+			c.arc(touch.clientX, touch.clientY, 40, 0, Math.PI*2, true); 
+			c.stroke();
+		}
+	}
+
+	var toSend = [];
+
+	for (var i = 0; i < buttons.length; i++){
+		if (buttons[i][5] == true) {
+			var toBroadcast = textToSend (buttons[i][4]);
+			toSend.push (toBroadcast);
+		}
+	}
+	if (toSend.length > 0) {
+		var buttonString = JSON.stringify (toSend);
+		ws.send (buttonString);
+	}
+}
+
+function buttonDetect (touch, j) {
+	var found = false;
+	if ((touch.clientX > buttons[j][0] && touch.clientX < (buttons[j][0] + buttons[j][2])) &&
+                        (touch.clientY > buttons[j][1] && touch.clientY < (buttons[j][1] + buttons[j][3]))) {
+		found = true;
+	}
+	return (found);
+}
+
+
+/*	
+ *	Touch event (e) properties : 
+ *	e.touches: 		Array of touch objects for every finger currently touching the screen
+ *	e.targetTouches: 	Array of touch objects for every finger touching the screen that
+ *						originally touched down on the DOM object the transmitted the event.
+ *	e.changedTouches	Array of touch objects for touches that are changed for this event. 					
+ *						I'm not sure if this would ever be a list of more than one, but would 
+ *						be bad to assume. 
+ *
+ *	Touch objects : 
+ *
+ *	identifier: An identifying number, unique to each touch event
+ *	target: DOM object that broadcast the event
+ *	clientX: X coordinate of touch relative to the viewport (excludes scroll offset)
+ *	clientY: Y coordinate of touch relative to the viewport (excludes scroll offset)
+ *	screenX: Relative to the screen
+ *	screenY: Relative to the screen
+ *	pageX: Relative to the full page (includes scrolling)
+ *	pageY: Relative to the full page (includes scrolling)
+ */	
+
+function onTouchStart(e) {
+	for (var j = 0; j < buttons.length; j ++) {
+		for(var i = 0; i<e.changedTouches.length; i++){
+			var touch =e.changedTouches[i]; 
+
+			if (buttonDetect (touch, j)) {
+				var buttonString = JSON.stringify ([textToSend(buttons[j][4])]);
+				ws.send (buttonString);
+				buttons[j][5] = true;
+				buttons[j][6] = touch.identifier;
+			}
+		}
+	}
+	touches = e.touches; 
+}
+ 
+function onTouchMove(e) {
+	e.preventDefault();
+	
+	touches = e.touches; 
+	var touchExists = []
+	for(var i = 0; i<e.changedTouches.length; i++){
+		var touch =e.changedTouches[i]; 
+		for (var j = 0; j < buttons.length; j ++) {
+			if (buttonDetect (touch, j)) {
+				buttons[j][5] = true;
+				buttons[j][6] = touch.identifier;
+				touchExists.push (j);
+			} else {
+				if (buttons[j][6] == touch.identifier) {
+					buttons[j][5] = false;
+					buttons[j][6] = -1;
+				}
+			}
+		}
+	}
+} 
+ 
+function onTouchEnd(e) { 
+   	touches = e.touches; 
+	notLeftCount = 0;
+	
+	for(var i = 0; i<e.changedTouches.length; i++){
+		var touch =e.changedTouches[i]; 
+		for (var j = 0; j < buttons.length; j ++) {
+			var found = -1
+//			if ((touch.clientX > buttons[j][0] && touch.clientX < (buttons[j][0] + buttons[j][2])) &&
+//			(touch.clientY > buttons[j][1] && touch.clientY < (buttons[j][1] + buttons[j][3]))) {
+			if (buttonDetect (touch, j)) {
+				found = j;
+			}
+			if (found != -1) {
+				
+
+				var buttonString = JSON.stringify (["released-"+ textToSend(buttons[j][4])]);
+				ws.send (buttonString);
+				buttons[j][5] = false;
+				buttons[j][6] = -1;
+			}
+		}
+	}
+   
+}
+
+function setupCanvas() {
+	canvas = document.createElement( 'canvas' );
+	c = canvas.getContext( '2d' );
+	container = document.createElement( 'div' );
+	container.className = "container";
+
+	document.body.appendChild( container );
+	container.appendChild(canvas);	
+
+	resetCanvas(); 
+	
+	c.strokeStyle = "#ffffff";
+	c.lineWidth = 2;	
+}
+</script>
+</body>
+</html>
