@@ -4,7 +4,7 @@ import tornado.ioloop
 import tornado.web
 import threading
 import time
-#import scratch
+import scratch
 import json
 import sys
 import os
